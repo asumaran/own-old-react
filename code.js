@@ -41,14 +41,24 @@ let rootInstance = null;
 function render(element, container) {
   prevInstance = rootInstance;
   const nextInstance = reconcile(container, prevInstance, element);
-  console.log(nextInstance);
   rootInstance = nextInstance;
 }
 
 function reconcile(parentDom, instance, element) {
-  const newInstance = instantiate(element);
-  parentDom.appendChild(newInstance.dom);
-  return newInstance;
+  console.log(instance && instance.element.type, element.type);
+  if (instance === null) {
+    const newInstance = instantiate(element);
+    parentDom.appendChild(newInstance.dom);
+    return newInstance;
+  } else if (instance.element.type === element.type) {
+    updateDomProperties(instance.dom, instance.element.props, element.props);
+    instance.element = element;
+    return instance;
+  } else {
+    const newInstance = instantiate(element);
+    parentDom.replaceChild(newInstance.dom, instance.dom);
+    return newInstance;
+  }
 }
 
 function instantiate(element) {
@@ -81,7 +91,7 @@ function updateDomProperties(dom, prevProps, nextProps) {
   Object.keys(prevProps);
   // Remove properties
   const prevOnlyProps = Object.keys(prevProps).filter(isRegularProp);
-  prevOnlyProps.forEach(() => {
+  prevOnlyProps.forEach((propName) => {
     dom[propName] = null;
   });
 
@@ -109,17 +119,15 @@ function updateDomProperties(dom, prevProps, nextProps) {
 }
 
 // App
-function tick() {
+function tick(color) {
   const root = document.getElementById("root");
   const time = new Date().toISOString();
-  const element = (
-    <span onClick={() => console.log("clicked!")}>Hola mundo</span>
-  );
+  const element = <h1 style={color}>{time}</h1>;
   render(element, root);
 }
 
-tick();
+tick("color: red");
 
 setTimeout(() => {
-  tick();
+  tick("color: blue");
 }, 1000);
