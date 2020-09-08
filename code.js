@@ -45,13 +45,15 @@ function render(element, container) {
 }
 
 function reconcile(parentDom, instance, element) {
-  console.log(instance && instance.element.type, element.type);
   if (instance === null) {
     const newInstance = instantiate(element);
     parentDom.appendChild(newInstance.dom);
     return newInstance;
+  } else if (element === null) {
+    parentDom.removeChild(instance.dom);
   } else if (instance.element.type === element.type) {
     updateDomProperties(instance.dom, instance.element.props, element.props);
+    instance.childInstances = reconcileChildren(instance, element);
     instance.element = element;
     return instance;
   } else {
@@ -59,6 +61,23 @@ function reconcile(parentDom, instance, element) {
     parentDom.replaceChild(newInstance.dom, instance.dom);
     return newInstance;
   }
+}
+
+function reconcileChildren(instance, element) {
+  dom = instance.dom;
+  const childInstances = instance.childInstances;
+  const nextChildElements = element.props.children || [];
+  const newChildInstances = [];
+
+  const count = Math.max(childInstances.length, nextChildElements.length);
+  for (let i = 0; i < count; i++) {
+    const childInstance = childInstances[i];
+    const childElement = nextChildElements[i];
+    const newChildInstance = reconcile(dom, childInstance, childElement);
+    newChildInstances.push(newChildInstance);
+  }
+
+  return newChildInstances;
 }
 
 function instantiate(element) {
@@ -128,6 +147,6 @@ function tick(color) {
 
 tick("color: red");
 
-setTimeout(() => {
+setInterval(() => {
   tick("color: blue");
 }, 1000);
