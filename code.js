@@ -11,6 +11,37 @@ function isRegularProp(propName) {
 // Our Own React Implementation
 const TEXT_ELEMENT = "TEXT ELEMENT";
 
+class Component {
+  constructor(props) {
+    this.props = props;
+    this.state = {};
+  }
+
+  setState(partialState) {
+    this.state = {
+      ...this.state,
+      ...partialState,
+    };
+
+    updateInstance(this.__internalInstance);
+  }
+}
+
+function createPublicInstance(element, internalInstance) {
+  const { type, props } = element;
+  const publicInstance = new type(props);
+
+  publicInstance.__internalInstance = internalInstance;
+
+  return publicInstance;
+}
+
+function updateInstance(internalInstance) {
+  const parentDom = internalInstance.dom.parentNode;
+  const element = internalInstance.element;
+  reconcile(parentDom, internalInstance, element);
+}
+
 function createElement(type, props, ...children) {
   return {
     type: type,
@@ -51,15 +82,23 @@ function reconcile(parentDom, instance, element) {
     return newInstance;
   } else if (element === null) {
     parentDom.removeChild(instance.dom);
-  } else if (instance.element.type === element.type) {
+  } else if (instance.element.type !== element.type) {
+    const newInstance = instantiate(element);
+    parentDom.replaceChild(newInstance.dom, instance.dom);
+    return newInstance;
+  } else if (typeof element.type === "string") {
     updateDomProperties(instance.dom, instance.element.props, element.props);
     instance.childInstances = reconcileChildren(instance, element);
     instance.element = element;
     return instance;
   } else {
-    const newInstance = instantiate(element);
-    parentDom.replaceChild(newInstance.dom, instance.dom);
-    return newInstance;
+    instance.publicInstance.props = element.props;
+    const childElement = instance.publicInstance.render();
+    const oldChildInstance = instance.childInstance;
+    const childInstance = reconcile(parentDom, oldChildInstance, childElement);
+    const dom = childInstance.dom;
+
+    return { ...instance, dom, childInstance, element };
   }
 }
 
@@ -83,27 +122,40 @@ function reconcileChildren(instance, element) {
 function instantiate(element) {
   const { type, props } = element;
 
-  let dom;
-  if (type === TEXT_ELEMENT) {
-    dom = document.createTextNode("");
+  const isDomElement = typeof type === "string";
+
+  if (isDomElement) {
+    let dom;
+    if (type === TEXT_ELEMENT) {
+      dom = document.createTextNode("");
+    } else {
+      dom = document.createElement(type);
+    }
+
+    updateDomProperties(dom, {}, props);
+
+    const childElements = props.children || [];
+    const childInstances = childElements.map(instantiate);
+
+    childInstances.forEach((instance) => {
+      dom.appendChild(instance.dom);
+    });
+
+    return {
+      element,
+      dom,
+      childInstances,
+    };
   } else {
-    dom = document.createElement(type);
+    const instance = {};
+    const publicInstance = createPublicInstance(element, instance);
+    const childElement = publicInstance.render();
+    const childInstance = instantiate(childElement);
+    const dom = childInstance.dom;
+
+    Object.assign(instance, { dom, element, childInstance, publicInstance });
+    return instance;
   }
-
-  updateDomProperties(dom, {}, props);
-
-  const childElements = props.children || [];
-  const childInstances = childElements.map(instantiate);
-
-  childInstances.forEach((instance) => {
-    dom.appendChild(instance.dom);
-  });
-
-  return {
-    element,
-    dom,
-    childInstances,
-  };
 }
 
 function updateDomProperties(dom, prevProps, nextProps) {
@@ -138,15 +190,28 @@ function updateDomProperties(dom, prevProps, nextProps) {
 }
 
 // App
-function tick(color) {
-  const root = document.getElementById("root");
-  const time = new Date().toISOString();
-  const element = <h1 style={color}>{time}</h1>;
-  render(element, root);
+class Foo extends Component {
+  state = {
+    date: new Date().toISOString(),
+  };
+
+  click = () => {
+    this.setState({
+      date: new Date().toISOString(),
+    });
+  };
+
+  render() {
+    return <span onClick={this.click}>world {this.state.date}</span>;
+  }
 }
 
-tick("color: red");
+const root = document.getElementById("root");
+const time = new Date().toISOString();
+const element = (
+  <div>
+    Hello <Foo>bar</Foo>
+  </div>
+);
 
-setInterval(() => {
-  tick("color: blue");
-}, 1000);
+render(element, root);
