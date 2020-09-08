@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "babel code.js -d lib --plugins @babel/plugin-transform-react-jsx --watch"
+    "build": "babel code.js -d lib --plugins @babel/plugin-transform-react-jsx,@babel/plugin-proposal-class-properties --watch"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +12,7 @@
   "devDependencies": {
     "@babel/cli": "^7.11.6",
     "@babel/core": "^7.11.6",
+    "@babel/plugin-proposal-class-properties": "^7.10.4",
     "@babel/plugin-transform-react-jsx": "^7.10.4"
   }
 }
